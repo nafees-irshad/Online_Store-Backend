@@ -15,17 +15,6 @@ const userSchema = joi.object({
         "Password must be between 6 to 12 characters long and contain only letters and numbers.",
       "string.empty": "Password cannot be empty.",
     }),
-  passwordConfirmation: joi
-    .any()
-    .valid(joi.ref("password"))
-    .messages({
-      "any.only": "Password confirmation does not match the new password.",
-    })
-    .required(),
-  tc: joi
-    .boolean()
-    .required()
-    .messages({ "any.required": "You must accept the terms and conditions" }),
 });
 
 const verificationSchema = joi.object({
