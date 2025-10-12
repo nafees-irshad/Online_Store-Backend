@@ -17,7 +17,7 @@ app.use(
     origin: "http://localhost:5173", // Allow requests from your React frontend
     credentials: true, // Allow cookies (if needed)
   })
-);
+);  
  
 //Catergory Routes
 app.use("/api/category", categoryRoutes);

@@ -6,11 +6,18 @@ const Product = require('../models/productsModel');
 //add to cart
 
 const addToCart = async (req, res) => {
-	const { productId, qty } = req.body;
+	const { productId, quantity } = req.body; // Changed from 'qty' to 'quantity'
 	const userId = req.user.id;
- 
+
 	try {
-		// 1. Check if product exists and in stock
+		// Validate input
+		if (!productId) {
+			return res.status(400).json({
+				status: 'Failed',
+				message: 'Invalid product ID or quantity',
+			});
+		}
+
 		const product = await Product.findById(productId);
 		if (!product) {
 			return res.status(404).json({
@@ -26,49 +33,73 @@ const addToCart = async (req, res) => {
 			});
 		}
 
-		// 2. Find the user's cart
+		// Check if requested quantity is available
+		if (product.qty < quantity) {
+			return res.status(400).json({
+				status: 'Failed',
+				message: `Only ${product.qty} items available in stock`,
+			});
+		}
+
 		let cart = await Cart.findOne({ userId });
 
-		// 3. If no cart, create a new one
 		if (!cart) {
-			cart = new Cart({
+			// Create new cart
+			const newCart = new Cart({
 				userId,
-				products: [{ productId, qty: qty || 1 }],
+				products: [
+					{
+						productId,
+						quantity: quantity || 1,
+					},
+				],
 			});
-			await cart.save();
-			return res.status(201).json({
+			await newCart.save();
+
+			return res.status(200).json({
 				status: 'Success',
-				message: 'Added to cart (new cart created)',
-				cart,
+				message: 'Product added to cart',
+			});
+		} else {
+			// Check if product already exists in cart
+			const existingProductIndex = cart.products.findIndex(
+				(item) => item.productId.toString() === productId
+			);
+			if (existingProductIndex > -1) {
+				// Product exists, increment quantity
+				const newQuantity =
+					cart.products[existingProductIndex].quantity + (quantity || 1);
+
+				// Check if total quantity exceeds available stock
+				if (newQuantity > product.qty) {
+					return res.status(400).json({
+						status: 'Failed',
+						message: `Cannot add more than available stock (${product.qty})`,
+					});
+				}
+
+				cart.products[existingProductIndex].quantity = newQuantity;
+			} else {
+				// Product doesn't exist, add new product
+				cart.products.push({
+					productId,
+					quantity: quantity || 1,
+				});
+			}
+
+			await cart.save();
+
+			return res.status(200).json({
+				status: 'Success',
+				message:
+					existingProductIndex > -1
+						? 'Product quantity updated'
+						: 'Product added to cart',
 			});
 		}
-
-		// 4. Check if the product already exists in the cart
-		const productExist = cart.products.find(
-			(p) => p.productId.toString() === productId
-		);
-
-		if (productExist) {
-			// 5. If it exists, update its quantity
-			await Cart.updateOne(
-				{ userId, 'products.productId': productId },
-				{ $inc: { 'products.$.qty': qty || 1 } }
-			);
-		} else {
-			// 6. If not exists, push new product
-			await Cart.updateOne(
-				{ userId },
-				{ $push: { products: { productId, qty: qty || 1 } } }
-			);
-		}
-
-		res.status(200).json({
-			status: 'Success',
-			message: 'Product added to cart',
-		});
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({
+		console.log(err);
+		return res.status(500).json({
 			status: 'Failed',
 			message: 'Internal server error',
 		});
@@ -135,18 +166,33 @@ const updateCart = async (req, res) => {
 };
 
 //view cart
-const getCart = async (req, resp) => {
-	const userId = req.params;
+const getCart = async (req, res) => {
+	const userId = req.user.id;
+
 	try {
-		const cart = await Cart.findOne(userId);
-		if (cart) {
-			resp.status(200).json(cart);
-		} else {
-			resp.status(200).json({ message: 'Cart not found' });
+		const cart = await Cart.findOne({ userId }).populate(
+			'products.productId',
+			'name price'
+		);
+
+		if (!cart) {
+			return res.status(200).json({
+				status: 'Success',
+				message: 'Cart is empty',
+				cart: { products: [] },
+			});
 		}
+
+		res.status(200).json({
+			status: 'Success',
+			cart: cart,
+		});
 	} catch (err) {
-		console.error('Error creating order:', err);
-		resp.status(500).send({ message: 'Internal Server Error' });
+		console.log(err);
+		return res.status(500).json({
+			status: 'Failed',
+			message: 'Internal server error',
+		});
 	}
 };
 
