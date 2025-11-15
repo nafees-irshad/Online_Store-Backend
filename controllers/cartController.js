@@ -6,12 +6,12 @@ const Product = require('../models/productsModel');
 //add to cart
 
 const addToCart = async (req, res) => {
-	const { productId, quantity } = req.body; // Changed from 'qty' to 'quantity'
-	const userId = req.user.id;
+	const { productId, quantity } = req.body; 
+	const userId = '68bfd7118a615ffa9789ff8a';
 
 	try {
 		// Validate input
-		if (!productId) {
+		if (!productId) { 
 			return res.status(400).json({
 				status: 'Failed',
 				message: 'Invalid product ID or quantity',
@@ -43,24 +43,7 @@ const addToCart = async (req, res) => {
 
 		let cart = await Cart.findOne({ userId });
 
-		if (!cart) {
-			// Create new cart
-			const newCart = new Cart({
-				userId,
-				products: [
-					{
-						productId,
-						quantity: quantity || 1,
-					},
-				],
-			});
-			await newCart.save();
-
-			return res.status(200).json({
-				status: 'Success',
-				message: 'Product added to cart',
-			});
-		} else {
+		if (cart) {
 			// Check if product already exists in cart
 			const existingProductIndex = cart.products.findIndex(
 				(item) => item.productId.toString() === productId
@@ -96,6 +79,23 @@ const addToCart = async (req, res) => {
 						? 'Product quantity updated'
 						: 'Product added to cart',
 			});
+		} else {
+			// Create new cart
+			const newCart = new Cart({
+				userId,
+				products: [
+					{
+						productId,
+						quantity: quantity || 1,
+					},
+				],
+			});
+			await newCart.save();
+
+			return res.status(200).json({
+				status: 'Success',
+				message: 'Product added to cart',
+			});
 		}
 	} catch (err) {
 		console.log(err);
@@ -107,10 +107,17 @@ const addToCart = async (req, res) => {
 };
 
 const updateCart = async (req, res) => {
-	const { productId, action } = req.body; // action = 'increase' | 'decrease' | 'remove'
-	const userId = req.user.id;
-
 	try {
+		const { productId, quantity } = req.body;
+		const userId = '68bfd7118a615ffa9789ff8a'; // example, replace with real user session
+
+		if (!productId || quantity === undefined) {
+			return res.status(400).json({
+				status: 'Failed',
+				message: 'productId and quantity are required',
+			});
+		}
+
 		const cart = await Cart.findOne({ userId });
 		if (!cart) {
 			return res.status(404).json({
@@ -130,34 +137,27 @@ const updateCart = async (req, res) => {
 			});
 		}
 
-		// Handle actions
-		if (action === 'increase') {
-			cart.products[productIndex].qty += 1;
-		} else if (action === 'decrease') {
-			if (cart.products[productIndex].qty > 1) {
-				cart.products[productIndex].qty -= 1;
-			} else {
-				// Remove if qty reaches 0
-				cart.products.splice(productIndex, 1);
-			}
-		} else if (action === 'remove') {
+		// ✅ If quantity <= 0, remove item
+		if (quantity <= 0) {
 			cart.products.splice(productIndex, 1);
 		} else {
-			return res.status(400).json({
-				status: 'Failed',
-				message: 'Invalid action',
-			});
+			cart.products[productIndex].quantity = quantity;
 		}
 
 		await cart.save();
 
-		res.status(200).json({
+		// ✅ Populate for frontend (so UI shows updated product info)
+		const updatedCart = await Cart.findOne({ userId }).populate(
+			'products.productId'
+		);
+
+		return res.status(200).json({
 			status: 'Success',
 			message: 'Cart updated successfully',
-			cart,
+			cart: updatedCart,
 		});
 	} catch (err) {
-		console.error(err);
+		console.error('Error updating cart:', err);
 		res.status(500).json({
 			status: 'Failed',
 			message: 'Internal server error',
@@ -167,7 +167,7 @@ const updateCart = async (req, res) => {
 
 //view cart
 const getCart = async (req, res) => {
-	const userId = req.user.id;
+	const userId = '68bfd7118a615ffa9789ff8a';
 
 	try {
 		const cart = await Cart.findOne({ userId }).populate(
@@ -198,18 +198,21 @@ const getCart = async (req, res) => {
 
 //delete single cart item
 const deleteCart = async (req, resp) => {
-	const userId = req.user.id;
+	const userId = '68bfd7118a615ffa9789ff8a';
 	try {
 		const cart = await Cart.findOneAndDelete(userId);
-		if (cart) {
-			resp.status(200).json({
-				status: 'success',
-				message: 'cart removed',
+		if (!cart) {
+			return resp.status(404).json({
+				status: 'failed',
+				message: 'Cart not found',
 			});
-		} else {
-			resp.status(404).json({ message: 'Cart not found' });
 		}
+		return resp.status(200).json({
+			status: 'success',
+			message: 'Cart removed successfully',
+		});
 	} catch (err) {
+		console.error('Error deleting cart:', err);
 		resp.status(500).send({ message: 'Internal Server Error' });
 	}
 };

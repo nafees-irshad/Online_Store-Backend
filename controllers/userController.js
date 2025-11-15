@@ -6,8 +6,8 @@ const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const userRegistration = async (req, resp) => {
-	const { name, email, password, address } = req.body;
-	console.log(req.body)
+	const { name, email, password } = req.body;
+	console.log(req.body);
 	const user = await User.findOne({ email: email });
 
 	if (user) {
@@ -20,14 +20,13 @@ const userRegistration = async (req, resp) => {
 	try {
 		const salt = await bcrypt.genSalt(10);
 		const hashPassword = await bcrypt.hash(password, salt);
- 
+
 		const newUserDoc = new User({
 			name: name,
 			email: email,
 			password: hashPassword,
-			// address: address,
 		});
-		
+
 		await newUserDoc.save();
 
 		// Generate JWT token
@@ -90,7 +89,7 @@ const userLogin = async (req, resp) => {
 };
 
 const changePassword = async (req, resp) => {
-	const { currentPassword, newPassword, passwordConfirmation } = req.body;
+	const { currentPassword, newPassword } = req.body;
 
 	try {
 		const user = await User.findById(req.user._id);
@@ -122,7 +121,7 @@ const changePassword = async (req, resp) => {
 			message: 'Error changing password',
 		});
 	}
-};
+}; 
 
 const updateUser = async (req, resp) => {
 	const updates = req.body;

@@ -44,6 +44,7 @@ const productDetails = async (req, resp) => {
 
 		resp.status(200).json(product);
 	} catch (err) {
+		console.error(err);
 		resp.status(500).send({ message: 'Internal Server Error' });
 	}
 };
@@ -54,10 +55,11 @@ const getAllProducts = async (req, resp) => {
 		const products = await Product.find();
 		resp.status(200).json(products);
 	} catch (error) {
+		console.error(error);
 		resp.status(500).json({ message: 'Error fetching products' });
 	}
 };
-
+ 
 const deleteProduct = async (req, resp) => {
 	const id = req.params;
 	try {
@@ -69,6 +71,7 @@ const deleteProduct = async (req, resp) => {
 		}
 		resp.status(200).json({ 'product deleted successfully': product });
 	} catch (err) {
+		console.error(err);
 		resp.status(500).send({ message: 'Internal Server Error' });
 	}
 };
