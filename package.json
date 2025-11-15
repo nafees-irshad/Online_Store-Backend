@@ -5,6 +5,9 @@
   "scripts": {
     "start": "node main.js"
   },
+  "engines": {
+    "node": "18.x"
+  },
   "author": "",
   "license": "ISC",
   "description": "",
